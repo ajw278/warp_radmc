@@ -1,0 +1,4 @@
+nphot = 2000000
+iranfreqmode = 1
+mc_scat_maxtauabs = 5.d0
+tgas_eq_tdust=1
