@@ -78,7 +78,7 @@ def compute_density_warped(i0=np.deg2rad(21.),  M_star=1.4 * 1.98847e33,G = 6.67
 
 	for i in range(nr):
 		
-		delta_i = f_inc(r[i])
+		"""delta_i = f_inc(r[i])
 		delta_pa = f_pa(r[i])
 
 		# Rotate x,y,z at this radius
@@ -106,12 +106,35 @@ def compute_density_warped(i0=np.deg2rad(21.),  M_star=1.4 * 1.98847e33,G = 6.67
 		vk = np.sqrt(G * M_star / np.maximum(R_cyl, 1e-5))  # avoid division by zero
 				
 		# Unit vector in phi direction (tangential)
-		vphi_unit = np.stack([-y_rot / R_cyl, x_rot / R_cyl, np.zeros_like(R_cyl)], axis=-1)
-		v_local = vk[..., np.newaxis] * vphi_unit  # (ntheta, nphi, 3)
+		#vphi_unit = np.stack([-y_rot / R_cyl, x_rot / R_cyl, np.zeros_like(R_cyl)], axis=-1)
+		#v_local = vk[..., np.newaxis] * vphi_unit  # (ntheta, nphi, 3)
+		# Keplerian speed and azimuthal unit vector in the local frame
+		 # Total local orientation (base inclination + warp offsets)"""
+		
+		delta_i = f_inc(r[i])
+		delta_pa = f_pa(r[i])
+		l_vec = ut.l_vector(i0, delta_i, delta_pa)          # local angular-momentum direction
+		R = ut.rotation_from_z_to_l(l_vec)                   # maps z -> l (column convention)
 
-		# Apply inverse warp (i.e., reverse the rotations)
-		v_global = v_local @ Rx_minus_i0 @ Rwarp  # note: right to left multiplication
-		vxyz[i]=  v_global
+		# Global -> local (disc-face-on) : row vectors use right-multiply by R^T
+		coords = np.stack([x[i], y[i], z[i]], axis=-1)       # (ntheta, nphi, 3)
+		coords_local = coords @ R.T
+
+		x_loc, y_loc, z_loc = coords_local[..., 0], coords_local[..., 1], coords_local[..., 2]
+		R_cyl = np.sqrt(x_loc**2 + y_loc**2)
+		R_cyl_safe = np.maximum(R_cyl, 1e-8)                 # avoid div-by-zero everywhere
+
+		# Density in the local (face-on) frame
+		rho0 = RHO0 * (R_cyl_safe / r0) ** -1.0
+		rho[i] = rho0 * ut.vertical_density(z_loc, H[i])
+
+		# Keplerian speed and azimuthal unit vector in the local frame
+		vk = np.sqrt(G * M_star / R_cyl_safe)
+		vphi_hat = np.stack([-y_loc / R_cyl_safe, x_loc / R_cyl_safe, np.zeros_like(R_cyl)], axis=-1)
+		v_local = vk[..., None] * vphi_hat
+
+		# Local -> global : row vectors use right-multiply by R (inverse of R^T)
+		vxyz[i] = v_local @ R
 
 	print(f"Computed density and velocity in warped disc with {nr} radial points.")
 	print(f"Warning: velocity computation in warped disc is not yet tested.")
