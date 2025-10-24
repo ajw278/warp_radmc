@@ -100,8 +100,8 @@ def write_density_spherical(rho):
         rho.ravel(order='F').tofile(f, sep='\n', format="%13.6e")
         f.write('\n')
 		
-def write_gas_velocity(vxyz, fname="gas_velocity.inp"):
-	"""
+"""def write_gas_velocity(vxyz, fname="gas_velocity.inp"):"""
+"""
 	Writes the gas velocity field to gas_velocity.inp for RADMC-3D.
 
 	Parameters
@@ -111,7 +111,7 @@ def write_gas_velocity(vxyz, fname="gas_velocity.inp"):
 	fname : str
 		Output filename (default: 'gas_velocity.inp').
 	"""
-	nr, ntheta, nphi, _ = vxyz.shape
+"""nr, ntheta, nphi, _ = vxyz.shape
 	nrcells = nr * ntheta * nphi
 
 	# Reshape to (nrcells, 3) and then flatten to (nrcells * 3,)
@@ -120,4 +120,13 @@ def write_gas_velocity(vxyz, fname="gas_velocity.inp"):
 	with open(fname, 'w') as f:
 		f.write('1\n')  # ASCII format
 		f.write(f'{nrcells}\n')
-		np.savetxt(f, vflat, fmt="%.9e")
+		np.savetxt(f, vflat, fmt="%.9e")"""
+
+def write_gas_velocity(vxyz, fname="gas_velocity.inp"):
+	nr, nt, np_, _ = vxyz.shape
+	nrcells = nr * nt * np_
+	vtab = np.reshape(vxyz, (nrcells, 3), order='F')  # r fastest -> matches density
+	with open(fname, 'w') as f:
+		f.write("1\n")                    # ascii
+		f.write(f"{nrcells}\n")
+		np.savetxt(f, vtab, fmt="%13.6e %13.6e %13.6e")

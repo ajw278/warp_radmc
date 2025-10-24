@@ -5,8 +5,12 @@ import extend_warpprof as ewp
 import write_radmc as wrm
 import utils as ut
 
+
 # Monte Carlo parameters
 nphot = int(2e6)
+
+i0_def = np.deg2rad(21.)
+
 
 # Model parameters (dust density)
 RHO0 = 2e-15
@@ -40,14 +44,26 @@ phi = (phi_edges[:-1]+phi_edges[1:])/2.
 WARPFILE = 'mwc758_warpprofile.txt' #'hd135344_warpprofile.txt'
 warp_data = np.loadtxt(WARPFILE)  
 r_warp, dinc, dpa = warp_data[:,0]*au, warp_data[:,1], warp_data[:,2]
+#dinc = np.zeros_like(dinc)  # TEMPORARY: zero inclination warp for testing
+##dpa = np.zeros_like(dpa)    # TEMPORARY: zero position-angle warp warp for testing
+
 
 #These are harcoded arbitrary extension values  -- change if needed
 dinc2= 0.030
 dinc1= 0.035
+
+dinc1=0.00 #TEMPORARY: zero inclination warp for testing
+dinc2=0.00 #TEMPORARY: zero inclination warp for testing
+
 dinc_ext_lower = np.array([dinc1, dinc2])
 
-dpa2 =0.00
+dpa2 =0.00 
 dpa1 = -0.10
+
+#dpa1=0.00  #TEMPORARY: zero position-angle warp for testing
+#dpa2=0.00  #TEMPORARY: zero position-angle warp for testing	
+
+
 dpa_ext_lower = np.array([dpa1, dpa2])
 
 #Create warp profile functions
@@ -56,7 +72,7 @@ f_inc, f_pa = ewp.extend_warp_profile(r_warp, dinc, dpa, plot=True, dinc_ext_low
 
 # Compute the density and velocity in the warped disc
 # This is achieved by rotating the spherical coordinates according to the warp profile
-def compute_density_warped(i0=np.deg2rad(21.),  M_star=1.4 * 1.98847e33,G = 6.67430e-8):
+def compute_density_warped(i0=i0_def,  M_star=mstar,G = 6.67430e-8):
 	rho = np.zeros((nr, ntheta, nphi), dtype=np.float64)
 	vxyz = np.zeros((nr, ntheta, nphi, 3), dtype=np.float64)
 	rr, tt, pp = np.meshgrid(r, theta,phi, indexing='ij')
@@ -109,7 +125,7 @@ def compute_density_warped(i0=np.deg2rad(21.),  M_star=1.4 * 1.98847e33,G = 6.67
 		#vphi_unit = np.stack([-y_rot / R_cyl, x_rot / R_cyl, np.zeros_like(R_cyl)], axis=-1)
 		#v_local = vk[..., np.newaxis] * vphi_unit  # (ntheta, nphi, 3)
 		# Keplerian speed and azimuthal unit vector in the local frame
-		 # Total local orientation (base inclination + warp offsets)"""
+		# Total local orientation (base inclination + warp offsets)"""
 		
 		delta_i = f_inc(r[i])
 		delta_pa = f_pa(r[i])
@@ -143,8 +159,26 @@ def compute_density_warped(i0=np.deg2rad(21.),  M_star=1.4 * 1.98847e33,G = 6.67
 
 def run():
 	print("Computing warped density in spherical coordinates...")
-	rho_sph, v_cart = compute_density_warped()
-     
+	rho_sph, v_cart = compute_density_warped(i0=i0_def, M_star=mstar)
+	fig, axs, data = plf.plot_velocity_slice(
+			v_cart, r, theta, phi,
+			z_over_R=0.10,
+			bandwidth=0.01,
+	     i0=i0_def,
+	     f_inc=f_inc, f_pa=f_pa,
+	     frame='local_sph',      # 'cart' | 'local_cart' | 'local_sph'
+	     outfile="velocity_slice_zOverR0p10.png"
+	)
+	plf.plot_velocity_slice_map(
+    v_cart, r, theta, phi,
+    z_over_R=0.10,
+    bandwidth=0.01,
+    i0=i0_def,
+    f_inc=None, f_pa=None,
+    frame='local_sph',            # 'cart' | 'local_cart' | 'local_sph'
+    bins_R=64,
+    bins_phi=64
+	)
 	print("Plotting density slices...")
 	plf.plot_bipolar_r_theta_slice(rho_sph,r, theta, phi, phi_value=0.0)
 
@@ -172,6 +206,6 @@ def run():
 
 	print('Writing radmc3d input...')
 	wrm.write_radmc3d_inp(nphot)
-	 
+		
 if __name__ == '__main__':
 	run()
