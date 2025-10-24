@@ -44,8 +44,8 @@ phi = (phi_edges[:-1]+phi_edges[1:])/2.
 WARPFILE = 'mwc758_warpprofile.txt' #'hd135344_warpprofile.txt'
 warp_data = np.loadtxt(WARPFILE)  
 r_warp, dinc, dpa = warp_data[:,0]*au, warp_data[:,1], warp_data[:,2]
-#dinc = np.zeros_like(dinc)  # TEMPORARY: zero inclination warp for testing
-##dpa = np.zeros_like(dpa)    # TEMPORARY: zero position-angle warp warp for testing
+dinc = np.zeros_like(dinc)  # TEMPORARY: zero inclination warp for testing
+dpa = np.zeros_like(dpa)    # TEMPORARY: zero position-angle warp warp for testing
 
 
 #These are harcoded arbitrary extension values  -- change if needed
@@ -60,8 +60,8 @@ dinc_ext_lower = np.array([dinc1, dinc2])
 dpa2 =0.00 
 dpa1 = -0.10
 
-#dpa1=0.00  #TEMPORARY: zero position-angle warp for testing
-#dpa2=0.00  #TEMPORARY: zero position-angle warp for testing	
+dpa1=0.00  #TEMPORARY: zero position-angle warp for testing
+dpa2=0.00  #TEMPORARY: zero position-angle warp for testing	
 
 
 dpa_ext_lower = np.array([dpa1, dpa2])
@@ -157,7 +157,7 @@ def compute_density_warped(i0=i0_def,  M_star=mstar,G = 6.67430e-8):
 	return rho, vxyz
 
 
-def run():
+def run(inc_gas=True):
 	print("Computing warped density in spherical coordinates...")
 	rho_sph, v_cart = compute_density_warped(i0=i0_def, M_star=mstar)
 	fig, axs, data = plf.plot_velocity_slice(
@@ -187,7 +187,6 @@ def run():
 
 	print("Writing density...")
 	wrm.write_density_spherical(rho_sph)
-	inc_gas=False
 		
 	if inc_gas:
 		print('Writing velocity...')
