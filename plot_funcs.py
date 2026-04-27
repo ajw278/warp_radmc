@@ -7,24 +7,19 @@ from scipy.interpolate import RegularGridInterpolator
 import utils as ut
 
 def plot_warp_profile(r_warp, dinc, dpa, r_ext, dinc_ext, dpa_ext, r_test, f_inc, f_pa, mask_new_points):
-    # Create the figure
     plt.figure(figsize=(6, 4))
 
-    # Plot delta inclination
     plt.plot(r_warp/au, dinc, 'k.', label='$\delta i$ (fit)', markersize=6)
     plt.plot(r_test/au, f_inc(r_test), 'C0-', label='$\delta i$ (CubicSpline)')
 
-    # Plot delta PA
     plt.plot(r_warp/au, dpa, 'k^', label='$\delta$PA (fit)', markersize=6)
     plt.plot(r_test/au, f_pa(r_test), 'C1--', label='$\delta$PA (CubicSpline)')
 
-    # Highlight extension points only
-    plt.scatter(r_ext[mask_new_points]/au, dinc_ext[mask_new_points], 
+    plt.scatter(r_ext[mask_new_points]/au, dinc_ext[mask_new_points],
                 c='C0', marker='x', label='$\delta i$ (added)', zorder=5)
     plt.scatter(r_ext[mask_new_points]/au, dpa_ext[mask_new_points], 
                 c='C1', marker='s', label='$\delta$PA (added)', zorder=5)
-
-    # Formatting
+	
     plt.axhline(0, color='gray', ls='--', lw=0.5)
     plt.xlim(np.amin(r_ext/au), 267)
     plt.ylim(-0.1, 0.1)
@@ -38,44 +33,23 @@ def plot_warp_profile(r_warp, dinc, dpa, r_ext, dinc_ext, dpa_ext, r_test, f_inc
 
 
 def plot_bipolar_r_theta_slice(rho_sph, r, theta, phi, phi_value=0.0, output='density_rtheta_bipolar.png'):
-	"""
-	Plot a bipolar (r, theta) slice at phi and phi + pi, with negative r for the back side.
-
-	Parameters:
-	-----------
-	rho_sph : ndarray
-		3D density array (nr, ntheta, nphi)
-	r : ndarray
-		Radial coordinates (nr,)
-	theta : ndarray
-		Polar angle coordinates (ntheta,) in radians
-	phi : ndarray
-		Azimuthal angle array (nphi,) in radians
-	phi_value : float
-		Azimuthal angle (in radians) for the front side
-	output : str
-		Filename to save the output plot
-	"""
+	"""Plot a bipolar (r, theta) slice at phi and phi + pi, with negative r for the back side."""
 	phi_value = phi_value % (2 * np.pi)
 	phi_plus_pi = (phi_value + np.pi) % (2 * np.pi)
 
 	idx_front = np.argmin(np.abs(phi - phi_value))
 	idx_back = np.argmin(np.abs(phi - phi_plus_pi))
 
-	# Extract slices
-	rho_front = rho_sph[:, :, idx_front]  # (nr, ntheta)
-	rho_back = rho_sph[:, :, idx_back]    # (nr, ntheta)
-     
-	# Find theta of max density at each radius (in degrees - 90)
+	rho_front = rho_sph[:, :, idx_front]
+	rho_back = rho_sph[:, :, idx_back]
+
 	theta_deg = theta * 180 / np.pi - 90.0
 	theta_max_front = theta_deg[np.argmax(rho_front, axis=1)]
 	theta_max_back  = theta_deg[np.argmax(rho_back, axis=1)]
 
-	# Build r arrays
-	R, T = np.meshgrid(r / au, theta * 180 / np.pi - 90.0, indexing='ij')        # (nr, ntheta)
-	Rneg, Tneg = np.meshgrid(-r / au, theta * 180 / np.pi -90.0, indexing='ij') # mirrored R
+	R, T = np.meshgrid(r / au, theta * 180 / np.pi - 90.0, indexing='ij')
+	Rneg, Tneg = np.meshgrid(-r / au, theta * 180 / np.pi -90.0, indexing='ij')
 
-	# Plot
 	fig, ax = plt.subplots(figsize=(10, 5))
 	c1 = ax.pcolormesh(Rneg, Tneg, np.log10(rho_back + 1e-30), cmap='inferno', shading='auto', vmin=-22, vmax=-15.0)
 	c2 = ax.pcolormesh(R, T, np.log10(rho_front + 1e-30), cmap='inferno', shading='auto', vmin=-22, vmax=-15.0)
@@ -150,7 +124,6 @@ def _coords_global(r, theta, phi):
 	return rr, x, y, z
 
 def _spherical_basis_local(xl, yl, zl):
-	"""Build local spherical unit vectors (e_r', e_theta', e_phi') at each cell."""
 	rloc = np.sqrt(xl**2 + yl**2 + zl**2)
 	r_safe = np.maximum(rloc, 1e-30)
 	Rcyl = np.sqrt(xl**2 + yl**2)
@@ -163,13 +136,12 @@ def _spherical_basis_local(xl, yl, zl):
 	return e_r, e_theta, e_phi, Rcyl_safe
 
 def _select_slice_mask(z_over_R_target, xl, yl, zl, bandwidth=0.01, min_pixels=16):
-	"""Find mask close to target z/R slice in the *local* disc frame."""
+	"""Find mask close to target z/R slice in the local disc frame."""
 	_, _, _, Rcyl_safe = _spherical_basis_local(xl, yl, zl)
-	ratio = zl / Rcyl_safe  # z'/R_cyl'
-	# Primary band
+	ratio = zl / Rcyl_safe
 	mask = np.isfinite(ratio) & (np.abs(ratio - z_over_R_target) <= bandwidth)
 
-	# Fallback if too few pixels: take the best ~min_pixels closest
+	# Fallback if too few pixels: take the closest min_pixels cells
 	if mask.sum() < min_pixels:
 		diff = np.abs(ratio - z_over_R_target)
 		k = min_pixels
@@ -181,42 +153,7 @@ def _select_slice_mask(z_over_R_target, xl, yl, zl, bandwidth=0.01, min_pixels=1
 def velocity_slice_profile(vxyz, r, theta, phi, *, z_over_R=0.1, bandwidth=0.01,
                            i0=np.deg2rad(21.0), f_inc=None, f_pa=None,
                            frame='local_sph', min_pixels=16):
-	"""
-	Build radial profiles of velocity components at a fixed z/R slice in the local disc frame.
-
-	Parameters
-	----------
-	vxyz : ndarray
-		Shape (nr, ntheta, nphi, 3), global Cartesian velocities [cm/s].
-	r, theta, phi : 1D arrays
-		Grid centers for spherical coordinates [cgs, rad, rad].
-	z_over_R : float
-		Target z'/R_cyl' slice value in the local (face-on) frame.
-	bandwidth : float
-		Acceptable |(z'/R_cyl') - z_over_R| band for selecting cells.
-	i0 : float
-		Base inclination in radians.
-	f_inc, f_pa : callables or None
-		Warp profiles: functions of radius in *same units as r* that return delta_i, delta_pa (radians).
-		If None, assumes a flat disc (no warp offsets).
-	frame : str
-		'cart' (global Cartesian),
-		'local_cart' (local Cartesian after unwarping),
-		'local_sph' (local spherical components v_r', v_theta', v_phi').
-	min_pixels : int
-		Minimum number of cells per radius; falls back to the closest cells if needed.
-
-	Returns
-	-------
-	r_au : ndarray
-		Radii in au.
-	v_mean_kms : (3, nr) ndarray
-		Mean of each component across selected cells at each radius [km/s].
-	v_std_kms : (3, nr) ndarray
-		Std dev of each component across selected cells at each radius [km/s].
-	counts : (nr,) ndarray
-		Number of cells used per radius.
-	"""
+	"""Radial velocity profiles at a fixed z'/R' slice in the local (warp-corrected) disc frame."""
 	nr = len(r)
 	rr, x, y, z = _coords_global(r, theta, phi)
 
@@ -226,31 +163,26 @@ def velocity_slice_profile(vxyz, r, theta, phi, *, z_over_R=0.1, bandwidth=0.01,
 
 	for i in range(nr):
 		R = _local_rotation(i0, r[i], f_inc, f_pa)
-		# Coordinates at this radius
-		coords = np.stack([x[i], y[i], z[i]], axis=-1)  # (ntheta, nphi, 3)
+		coords = np.stack([x[i], y[i], z[i]], axis=-1)
 		coords_local = coords @ R.T
 		xl, yl, zl = coords_local[..., 0], coords_local[..., 1], coords_local[..., 2]
 
-		# Select cells near desired z'/R_cyl' slice
 		mask = _select_slice_mask(z_over_R, xl, yl, zl, bandwidth=bandwidth, min_pixels=min_pixels)
 		counts[i] = int(mask.sum())
 		if counts[i] == 0:
 			continue
 
-		# Velocity components according to requested frame
-		Vg = vxyz[i]  # global cartesian cm/s, shape (ntheta, nphi, 3)
+		Vg = vxyz[i]
 
 		if frame == 'cart':
 			comps = [Vg[..., 0][mask], Vg[..., 1][mask], Vg[..., 2][mask]]
 
 		else:
-			# Move velocities to local frame
-			Vl = Vg @ R.T  # global -> local (row vectors)
+			Vl = Vg @ R.T
 			if frame == 'local_cart':
 				comps = [Vl[..., 0][mask], Vl[..., 1][mask], Vl[..., 2][mask]]
 			elif frame == 'local_sph':
 				e_r, e_theta, e_phi, _ = _spherical_basis_local(xl, yl, zl)
-				# Project local cartesian velocity onto local spherical basis
 				v_r     = np.sum(Vl * e_r, axis=-1)
 				v_theta = np.sum(Vl * e_theta, axis=-1)
 				v_phi   = np.sum(Vl * e_phi, axis=-1)
@@ -262,7 +194,6 @@ def velocity_slice_profile(vxyz, r, theta, phi, *, z_over_R=0.1, bandwidth=0.01,
 			v_mean[k, i] = np.nanmean(comps[k])
 			v_std[k, i]  = np.nanstd(comps[k])
 
-	# Convert to au and km/s
 	r_au = r / au
 	v_mean_kms = v_mean / 1e5
 	v_std_kms  = v_std / 1e5
@@ -283,7 +214,6 @@ def plot_velocity_slice(vxyz, r, theta, phi, *,
 		frame=frame, min_pixels=min_pixels
 	)
 
-	# Choose labels
 	if frame == 'cart':
 		comp_labels = [r"$v_x$", r"$v_y$", r"$v_z$"]
 	elif frame == 'local_cart':
@@ -324,71 +254,32 @@ def plot_velocity_slice_map(
     outfile=None,
     show_counts=False             # optionally show a small counts panel
 ):
-	"""
-	Make 2D colormaps of velocity components at a fixed z'/R' slice that follows the warp.
-
-	Axes are local cylindrical radius R' (au) vs local azimuth φ' (deg). Values are km/s.
-
-	Parameters
-	----------
-	vxyz : (nr, ntheta, nphi, 3) ndarray
-		Global Cartesian velocities [cm/s].
-	r, theta, phi : 1D arrays
-		Spherical grid centers [cm, rad, rad].
-	z_over_R : float
-		Target z'/R'_cyl in the local (face-on) frame.
-	bandwidth : float
-		Acceptable |(z'/R') - target| for slice selection.
-	i0 : float
-		Base inclination [rad].
-	f_inc, f_pa : callables or None
-		Warp profiles: delta_i(r), delta_pa(r) in radians. If None → flat.
-	frame : str
-		Which components to display: 'cart', 'local_cart', or 'local_sph'.
-	bins_R, bins_phi : int
-		Number of bins in R' and φ' for the 2D map.
-	R_min, R_max : float or None
-		Cylindrical-radius range (cm) for the histogram; defaults will be inferred.
-	vlim : (vmin, vmax) in km/s
-		Fixed color limits (symmetric often looks nice); None = autoscale per panel.
-	show_counts : bool
-		If True, add a small fourth panel with the log10-counts per bin.
-
-	Returns
-	-------
-	fig, axs, products
-		products is a dict with edges and maps for further processing.
-	"""
+	"""2D velocity maps at a fixed z'/R' slice; axes are R' [au] vs φ' [deg]."""
 	nr = len(r)
 	rr, x, y, z = _coords_global(r, theta, phi)
 
-	# Accumulate per selected cell across all radii
-	R_list   = []  # R' [cm]
-	Phi_list = []  # φ' [rad]
-	comps_lists = [[], [], []]  # three velocity components
+	R_list   = []
+	Phi_list = []
+	comps_lists = [[], [], []]
 
-	# First pass: gather values
 	for i in range(nr):
 		Rloc = _local_rotation(i0, r[i], f_inc, f_pa)
 
-		# Coordinates at this radius → local frame
-		coords = np.stack([x[i], y[i], z[i]], axis=-1)                 # (ntheta, nphi, 3)
+		coords = np.stack([x[i], y[i], z[i]], axis=-1)
 		coords_local = coords @ Rloc.T
 		xl, yl, zl = coords_local[..., 0], coords_local[..., 1], coords_local[..., 2]
 
-		# Slice selector in local frame
 		_, _, _, Rcyl_safe = _spherical_basis_local(xl, yl, zl)
 		ratio = zl / Rcyl_safe
 		mask = np.isfinite(ratio) & (np.abs(ratio - z_over_R) <= bandwidth)
 		if not np.any(mask):
 			continue
 
-		# Velocities → desired frame
-		Vg = vxyz[i]  # global cartesian [cm/s]
+		Vg = vxyz[i]
 		if frame == 'cart':
 			comps = [Vg[..., 0][mask], Vg[..., 1][mask], Vg[..., 2][mask]]
 		else:
-			Vl = Vg @ Rloc.T  # global -> local
+			Vl = Vg @ Rloc.T
 			if frame == 'local_cart':
 				comps = [Vl[..., 0][mask], Vl[..., 1][mask], Vl[..., 2][mask]]
 			elif frame == 'local_sph':
@@ -400,9 +291,8 @@ def plot_velocity_slice_map(
 			else:
 				raise ValueError("frame must be 'cart', 'local_cart', or 'local_sph'.")
 
-		# Local polar coordinates of selected cells
-		Rsel  = Rcyl_safe[mask]                # cm
-		Phisel = np.arctan2(yl[mask], xl[mask])  # rad (-π, π]
+		Rsel  = Rcyl_safe[mask]
+		Phisel = np.arctan2(yl[mask], xl[mask])
 
 		R_list.append(Rsel)
 		Phi_list.append(Phisel)
@@ -414,23 +304,19 @@ def plot_velocity_slice_map(
 
 	R_vals = np.concatenate(R_list)
 	Phi_vals = np.concatenate(Phi_list)
-	comp_vals = [np.concatenate(c) / 1e5 for c in comps_lists]  # to km/s
+	comp_vals = [np.concatenate(c) / 1e5 for c in comps_lists]
 
-	# Histogram binning ranges
 	if R_min is None:
 		R_min = np.nanmax([np.nanmin(R_vals), 0.0])
 	if R_max is None:
 		R_max = np.nanmax(R_vals)
 	phi_min, phi_max = -np.pi, np.pi
 
-	# Edges for (R', φ')
 	R_edges = np.linspace(R_min, R_max, bins_R + 1)
 	phi_edges = np.linspace(phi_min, phi_max, bins_phi + 1)
 
-	# Counts per bin (for averaging)
 	counts, _, _ = np.histogram2d(R_vals, Phi_vals, bins=[R_edges, phi_edges])
 
-	# Weighted sums and means per component
 	maps = []
 	for k in range(3):
 		wsum, _, _ = np.histogram2d(R_vals, Phi_vals, bins=[R_edges, phi_edges], weights=comp_vals[k])
@@ -438,23 +324,19 @@ def plot_velocity_slice_map(
 			mean_map = wsum / counts
 		maps.append(mean_map)
 
-	# Plot
 	comp_labels = {
 		'cart':       [r"$v_x$ [km s$^{-1}$]", r"$v_y$ [km s$^{-1}$]", r"$v_z$ [km s$^{-1}$]"],
 		'local_cart': [r"$v_{x'}$ [km s$^{-1}$]", r"$v_{y'}$ [km s$^{-1}$]", r"$v_{z'}$ [km s$^{-1}$]"],
 		'local_sph':  [r"$v_{r'}$ [km s$^{-1}$]", r"$v_{\theta'}$ [km s$^{-1}$]", r"$v_{\phi'}$ [km s$^{-1}$]"],
 	}[frame]
 
-	# Convert R to au and φ to deg for axes; keep data as-is
 	R_edges_au = R_edges / au
 	phi_edges_deg = np.rad2deg(phi_edges)
 
 	ncols = 4 if show_counts else 3
 	fig, axs = plt.subplots(1, ncols, figsize=figsize, constrained_layout=True)
 
-	# Common plotting helper
 	def _plot_panel(ax, Z, title):
-		# masked array to hide empty bins
 		Zm = np.ma.masked_invalid(Z)
 		if vlim is None:
 			im = ax.pcolormesh(R_edges_au, phi_edges_deg, Zm.T, 	

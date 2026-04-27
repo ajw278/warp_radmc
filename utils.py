@@ -2,15 +2,12 @@ import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
 def interpolate_to_cartesian(rho_sph, r, theta, phi, x_grid, y_grid, z_grid):
-	# Create interpolator
 	interp = RegularGridInterpolator((r, theta, phi), rho_sph, bounds_error=False, fill_value=0)
 
-	# Convert Cartesian grid to spherical coordinates
 	rr = np.sqrt(x_grid**2 + y_grid**2 + z_grid**2)
 	tt = np.arccos(z_grid / (rr + 1e-30))  # avoid division by zero
 	pp = np.arctan2(y_grid, x_grid) % (2 * np.pi)
 
-	# Stack points for interpolation
 	interp_points = np.stack([rr, tt, pp], axis=-1)
 	rho_cart = interp(interp_points)
 	return rho_cart

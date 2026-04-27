@@ -12,11 +12,12 @@ def write_amr_grid(xi, yi, zi, fname='amr_grid.inp'):
 			for v in np.ravel(arr):
 				f.write(f"{float(v):13.6e}\n")
 
-def write_co_number_density(rho_sph, abundance=1e-5):
-	mu = 2.3  # mean molecular weight
+def write_co_number_density(rho_sph, abundance=1e-5, gas_to_dust=100.0):
+	mu = 2.3  # mean molecular weight per particle (H2+He, cosmic abundances)
 	mH = 1.6737e-24  # hydrogen mass in grams
 
-	nCO = rho_sph * (abundance*100.0  / (mu * mH))# gas-to-dust ratio
+	# abundance is n_CO per mean particle; n_CO/n_H2 ~ 2 * abundance
+	nCO = rho_sph * (abundance * gas_to_dust / (mu * mH))
 
 	with open('numberdens_co.inp', 'w') as f:
 		f.write("1\n")
@@ -63,11 +64,13 @@ def write_line_input():
 		f.write('2\n1\n')
 		f.write('co   leiden   0   0   0')
 
-def write_radmc3d_inp(nphot):
+def write_radmc3d_inp(nphot, nphot_scat=int(1e7)):
 	with open('radmc3d.inp', 'w') as f:
-		f.write(f"nphot = {nphot}\niranfreqmode = 1\n")
-		#Optical depth 5 for speedup
-		f.write("mc_scat_maxtauabs = 5.d0\n")
+		f.write(f"nphot = {nphot}\n")
+		f.write(f"nphot_scat = {nphot_scat}\n")
+		f.write("iranfreqmode = 1\n")
+		f.write("mc_scat_maxtauabs = 5.d0\n")  # optical depth cut-off for speedup
+		f.write("scattering_mode_max = 1\n")    # isotropic scattering; set to 5 for full Mueller matrix
 		f.write("tgas_eq_tdust=1")
 
 

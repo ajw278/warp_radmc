@@ -98,9 +98,7 @@ def main():
 
         im = ax.imshow(img, origin="lower", aspect="equal",
                        vmin=vmin, vmax=vmax, interpolation="nearest")
-        # Title with spectral world value
         world, unit, ctype = spectral_world_value(hdr, fits_spec_i, int(ch))
-        # Tidy unit for display
         unit_disp = f" {unit}" if unit else ""
         ax.set_title(f"ch {ch}  ({ctype}: {world:.5g}{unit_disp})", fontsize=9)
         ax.set_xlabel("x [pix]")
@@ -108,7 +106,6 @@ def main():
         cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.02)
         cbar.ax.tick_params(labelsize=8)
 
-    # Hide unused panels
     for k in range(nplot, nrows * ncols):
         axes[k // ncols, k % ncols].axis("off")
 

@@ -6,8 +6,6 @@ import plot_funcs as plf
 
 
 
-# Prepend (0.0, 0.0) to ensure warp goes to zero at origin
-
 def extend_warp_profile(r_warp, dinc, dpa, plot=False, dinc_ext_lower=None, dpa_ext_lower=None, r_ext_lower=None):
     
     extend_lower = False
@@ -37,14 +35,10 @@ def extend_warp_profile(r_warp, dinc, dpa, plot=False, dinc_ext_lower=None, dpa_
     else:
         dpa_ext = dpa
 
-    # Create cubic spline interpolators (with extrapolation)
     f_inc = CubicSpline(r_ext, dinc_ext, extrapolate=False)
     f_pa  = CubicSpline(r_ext, dpa_ext, extrapolate=False)
 
-
-    # Optional: plot to verify behavior
     r_test = np.linspace(0, 280, 1000)*au
-    # Compute which r_ext points are not in r_warp (assuming 1D arrays)
     mask_new_points = ~np.isin(r_ext, r_warp)
 
     if plot:

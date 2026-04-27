@@ -1,3 +1,6 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from constants import au
 
 def find_structure_surface(rho_sph, r, theta, phi, threshold=1e-20, output='structure_faceon.png'):
 	"""
@@ -20,9 +23,8 @@ def find_structure_surface(rho_sph, r, theta, phi, threshold=1e-20, output='stru
 	"""
 	nr, ntheta, nphi = rho_sph.shape
 	x_list, y_list, theta_list = [], [], []
-		
-	# Precompute θ index of max density for each (r, φ)
-	imax_theta = np.argmax(rho_sph, axis=1)  # shape: (nr, nphi)
+
+	imax_theta = np.argmax(rho_sph, axis=1)
 
 	for iphi in range(nphi):
 		phi_val = phi[iphi]
@@ -37,7 +39,6 @@ def find_structure_surface(rho_sph, r, theta, phi, threshold=1e-20, output='stru
 					r_val = r[ir]
 					theta_val = theta[itheta]
 
-					# Spherical to Cartesian (face-on view)
 					sin_theta = np.sin(theta_val)
 					x = r_val * sin_theta * np.cos(phi_val)
 					y = r_val * sin_theta * np.sin(phi_val)
@@ -47,15 +48,12 @@ def find_structure_surface(rho_sph, r, theta, phi, threshold=1e-20, output='stru
 						y_list.append(y)
 						theta_list.append(theta_val)
 
-						break  # ← crucial! break r-loop after first match
+						break  # ← crucial: break r-loop after first match above the midplane
 
-
-	# Convert lists to arrays
 	x_arr = np.array(x_list)
 	y_arr = np.array(y_list)
 	theta_arr = np.array(theta_list)
 
-	# Plotting
 	plt.figure(figsize=(6, 6))
 	sc = plt.scatter(1e3*x_arr / au /150.0, 1e3*y_arr / au/150.0, c=np.degrees(theta_arr), s=5, cmap='viridis', alpha=0.8)
 	sc = plt.scatter(1e3*x_arr / au /150.0, 1e3*y_arr / au/150.0, c=np.degrees(theta_arr), s=5, cmap='viridis', alpha=0.8)
