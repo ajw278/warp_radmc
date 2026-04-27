@@ -372,18 +372,3 @@ python read_fits.py test.fits --step 1 --outfile co_channels.png
 Refer to the [RADMC-3D documentation](https://www.ita.uni-heidelberg.de/~dullemond/software/radmc-3d/) for the full list of command-line options.
 
 ---
-
-## Physical Constants (`constants.py`)
-
-All values in CGS:
-
-| Symbol | Value | Description |
-|---|---|---|
-| `au` | 1.496 × 10¹³ cm | Astronomical unit |
-| `pc` | 3.086 × 10¹⁸ cm | Parsec |
-| `ms` | 1.989 × 10³³ g | Solar mass |
-| `rs` | 6.957 × 10¹⁰ cm | Solar radius |
-| `ts` | 5778 K | Solar effective temperature |
-| `ls` | 3.828 × 10³³ erg s⁻¹ | Solar luminosity |
-
----
